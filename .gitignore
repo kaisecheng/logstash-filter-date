@@ -12,5 +12,3 @@ build
 *.iml
 
 gradle.properties
-
-lib/logstash-filter-date_jars.rb
