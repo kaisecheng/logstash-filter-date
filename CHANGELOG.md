@@ -1,3 +1,6 @@
+## 3.1.16
+  - Re-packaging the plugin [#163](https://github.com/logstash-plugins/logstash-filter-date/pull/163)
+
 ## 3.1.15
   - Build: review build to be more reliable/portable [#139](https://github.com/logstash-plugins/logstash-filter-date/pull/139)
     * cleaned up Java dependencies 
