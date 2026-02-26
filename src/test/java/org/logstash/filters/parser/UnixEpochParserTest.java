@@ -67,5 +67,43 @@ public class UnixEpochParserTest {
     Instant actual = new UnixEpochParser().parse(new BigDecimal(input));
     assertEquals(expected, actual);
   }
+
+  // parse(Long)
+
+  @Test
+  public void parsesLongZero() {
+    assertEquals(new Instant(0), new UnixEpochParser().parse(0L));
+  }
+
+  @Test
+  public void parsesLongSeconds() {
+    assertEquals(new Instant(1000000000L * 1000), new UnixEpochParser().parse(1000000000L));
+  }
+
+  @Test
+  public void parsesLongKnownValue() {
+    assertEquals(new Instant(1478207457L * 1000), new UnixEpochParser().parse(1478207457L));
+  }
+
+  // parse(Double)
+
+  @Test
+  public void parsesDoubleWithFractionalSeconds() {
+    // 1478207457.456 → 2016-11-03T21:10:57.456Z
+    assertEquals(new Instant(1478207457456L), new UnixEpochParser().parse(1478207457.456D));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void rejectsDoubleAboveMaxEpochSeconds() {
+    double aboveMax = (double) Integer.MAX_VALUE + 1.0;
+    new UnixEpochParser().parse(aboveMax);
+  }
+
+  @Test
+  public void parsesBigDecimalWithMicrosecondPrecisionTruncatesToMillis() {
+    // BigDecimal from JSON float: 1350414944.123456 → truncated to 1350414944123 ms
+    assertEquals(new Instant(1350414944123L),
+        new UnixEpochParser().parse(new BigDecimal("1350414944.123456")));
+  }
 }
 
