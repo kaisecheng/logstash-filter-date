@@ -1,4 +1,5 @@
-/* * Licensed to Elasticsearch under one or more contributor
+/*
+ * Licensed to Elasticsearch under one or more contributor
  * license agreements. See the NOTICE file distributed with
  * this work for additional information regarding copyright
  * ownership. Elasticsearch licenses this file to you under
@@ -18,37 +19,63 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.Instant;
 import java.math.BigDecimal;
+import java.time.Instant;
 
+/**
+ * Parses Unix epoch timestamps with nanosecond precision.
+ *
+ * <p>String inputs support up to 9 fractional digits (nanoseconds).
+ * Double inputs are limited to approximately microsecond precision due to
+ * IEEE 754 representation (~15-16 significant digits; epoch-seconds use ~10).
+ * Use String or BigDecimal for full nanosecond precision.
+ */
 public class UnixEpochParser implements TimestampParser {
-  private static long MAX_EPOCH_SECONDS = (long)Integer.MAX_VALUE;
+  private static final long MAX_EPOCH_SECONDS = Integer.MAX_VALUE;
 
   @Override
   public Instant parse(String value) {
     if (value.contains(".")) {
       int dot = value.indexOf(".");
       long seconds = Long.parseLong(value.substring(0, dot));
-      long millis = coerceToMillis(seconds);
-      // Milliseconds today, so we take at most 3 digits after the dot.
-      int subdigits = Math.min(3, (value.length() - dot - 1));
-      assert subdigits >= 0 && subdigits <= 3;
-
-      long subseconds = Long.parseLong(value.substring(dot+1, dot+1+subdigits));
-      switch (subdigits) {
-        case 0:
-          return new Instant(millis);
-        case 1:
-          return new Instant(millis + subseconds * 100);
-        case 2:
-          return new Instant(millis + subseconds * 10);
-        case 3:
-        default:
-          return new Instant(millis + subseconds);
+      checkMaxSeconds(seconds);
+      // Support up to 9 fractional digits, right-padding the fractional part with zeros
+      // Digits beyond the 9th are silently ignored
+      int subdigits = Math.min(9, value.length() - dot - 1);
+      long nanos = Long.parseLong(value.substring(dot + 1, dot + 1 + subdigits));
+      for (int i = subdigits; i < 9; i++) {
+        nanos *= 10;
       }
+      return Instant.ofEpochSecond(seconds, nanos);
     } else {
-      return new Instant(coerceToMillis(Long.parseLong(value)));
+      return parse(Long.parseLong(value));
     }
+  }
+
+  @Override
+  public Instant parse(Long value) {
+    checkMaxSeconds(value);
+    return Instant.ofEpochSecond(value);
+  }
+
+  @Override
+  public Instant parse(Double value) {
+    long seconds = value.longValue();
+    checkMaxSeconds(seconds);
+    // Doubles have ~15-16 significant digits; epoch-seconds values around 1e9 leave only ~6-7
+    // digits for the fractional part, giving at best microsecond precision.
+    long micros = (long) (value * 1_000_000);
+    return Instant.ofEpochSecond(seconds, (micros % 1_000_000) * 1_000);
+  }
+
+  @Override
+  public Instant parse(BigDecimal value) {
+    long seconds = value.longValue();
+    checkMaxSeconds(seconds);
+    long nanos = value.subtract(BigDecimal.valueOf(seconds))
+        .scaleByPowerOfTen(9)
+        .longValue();
+    return Instant.ofEpochSecond(seconds, nanos);
   }
 
   @Override
@@ -56,31 +83,9 @@ public class UnixEpochParser implements TimestampParser {
     return parse(value);
   }
 
-  @Override
-  public Instant parse(Long value) {
-    return new Instant(coerceToMillis(value));
-  }
-
-  @Override
-  public Instant parse(Double value) {
-    if (value.longValue() > MAX_EPOCH_SECONDS) {
-      throw new IllegalArgumentException("Cannot parse date for value larger than UNIX epoch maximum seconds");
-    }
-    return new Instant((long)(value * 1000));
-  }
-
-  private long coerceToMillis(long value) {
+  private void checkMaxSeconds(long value) {
     if (value > MAX_EPOCH_SECONDS) {
       throw new IllegalArgumentException("Cannot parse date for value larger than UNIX epoch maximum seconds");
     }
-    return value * 1000;
-  }
-
-  @Override
-  public Instant parse(BigDecimal value) {
-    if (value.longValue() > MAX_EPOCH_SECONDS) {
-      throw new IllegalArgumentException("Cannot parse date for value larger than UNIX epoch maximum seconds");
-    }
-    return new Instant(value.scaleByPowerOfTen(3).longValue());
   }
 }

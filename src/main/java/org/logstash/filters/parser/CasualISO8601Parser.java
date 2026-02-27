@@ -19,54 +19,63 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.DateTimeZone;
-import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
-
-import java.util.Arrays;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DecimalStyle;
+import java.time.temporal.ChronoField;
 
 /**
- * Created by jls on 11/2/16.
+ * Parses ISO8601-ish date strings with nanosecond precision.
+ * Supports lenient ISO8601 like Joda CasualISO8601Parser with dot and comma as decimal separators.
+ * Handles timestamps with or without timezone offsets, and with or without fractional seconds (0–9 digits).
  */
 public class CasualISO8601Parser implements TimestampParser {
-  private static final DateTimeFormatter[] baseParsers;
-  private final DateTimeFormatter[] parsers;
+  private static final DateTimeFormatter BASE_DOT;
+  private static final DateTimeFormatter BASE_COMMA;
 
   static {
-    baseParsers = new DateTimeFormatter[] {
-            ISODateTimeFormat.dateTimeParser(),
-            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSZ"),
-            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS"),
-            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss,SSSZ"),
-            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss,SSS")
-    };
+    BASE_DOT = new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .append(DateTimeFormatter.ISO_LOCAL_DATE)
+        .optionalStart().appendLiteral('T').append(DateTimeFormatter.ISO_LOCAL_TIME).optionalEnd()
+        // Allow space as a separator to support Joda CasualISO8601Parser's "yyyy-MM-dd HH:mm:ss"
+        .optionalStart().appendLiteral(' ').append(DateTimeFormatter.ISO_LOCAL_TIME).optionalEnd()
+        .optionalStart().appendZoneOrOffsetId().optionalEnd()
+        .optionalStart().appendOffset("+HHmmss", "Z").optionalEnd()
+        .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+        .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+        .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+        .parseDefaulting(ChronoField.NANO_OF_SECOND, 0)
+        .toFormatter()
+        .withZone(ZoneId.systemDefault());
+
+    BASE_COMMA = BASE_DOT.withDecimalStyle(DecimalStyle.of(java.util.Locale.GERMAN));
   }
 
-  private String timeZone;
+  private final DateTimeFormatter[] parsers;
 
-  public CasualISO8601Parser(String timeZone) {
-    this.timeZone = timeZone;
-    if (timeZone == null) {
-      parsers = baseParsers;
+  public CasualISO8601Parser(String timezone) {
+    if (timezone == null) {
+      parsers = new DateTimeFormatter[]{BASE_DOT, BASE_COMMA};
     } else {
-      parsers = Arrays.stream(baseParsers).map(p -> p.withZone(DateTimeZone.forID(timeZone))).toArray(DateTimeFormatter[]::new);
+      ZoneId zone = ZoneId.of(timezone);
+      parsers = new DateTimeFormatter[]{BASE_DOT.withZone(zone), BASE_COMMA.withZone(zone)};
     }
   }
 
   @Override
   public Instant parse(String value) {
     RuntimeException lastException = null;
-    for (DateTimeFormatter parser : parsers) {
+    for (DateTimeFormatter formatter : parsers) {
       try {
-        return new Instant(parser.parseMillis(value));
-      } catch (IllegalArgumentException e) {
+        return formatter.parse(value, Instant::from);
+      } catch (RuntimeException e) {
         lastException = e;
       }
     }
-
     throw lastException;
   }
 
@@ -87,17 +96,17 @@ public class CasualISO8601Parser implements TimestampParser {
 
   @Override
   public Instant parseWithTimeZone(String value, String timezone) {
-    DateTimeZone tz = DateTimeZone.forID(timezone);
+    ZoneId zone = ZoneId.of(timezone);
     RuntimeException lastException = null;
-    for (DateTimeFormatter parser : parsers) {
+    for (DateTimeFormatter formatter : parsers) {
       try {
-        DateTimeFormatter parserWithZone = parser.withZone(tz);
-        return new Instant(parserWithZone.parseMillis(value));
-      } catch (IllegalArgumentException e) {
+        // withZone provides a fallback for zone-less inputs; explicit offsets in
+        // the string always win over withZone().
+        return formatter.withZone(zone).parse(value, Instant::from);
+      } catch (RuntimeException e) {
         lastException = e;
       }
     }
-
     throw lastException;
   }
 }

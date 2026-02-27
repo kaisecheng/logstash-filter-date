@@ -150,6 +150,13 @@ class LogStash::Filters::Date < LogStash::Filters::Base
   # successful match
   config :tag_on_failure, :validate => :array, :default => ["_dateparsefailure"]
 
+  # Controls the sub-second precision of the parsed timestamp.
+  # Use `"ms"` (default) for millisecond precision
+  # Use `"ns"` for nanosecond precision
+  config :precision, :validate => [Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_MS,
+                                   Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_NS],
+                          :default => Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_MS
+
   def register
     # nothing
   end
@@ -179,7 +186,7 @@ class LogStash::Filters::Date < LogStash::Filters::Base
       metric.increment(:failures)
     end
 
-    @datefilter = org.logstash.filters.DateFilter.new(source, @target, @tag_on_failure, success_block, failure_block)
+    @datefilter = org.logstash.filters.DateFilter.new(source, @target, @tag_on_failure, @precision, success_block, failure_block)
 
     @match[1..-1].map do |format|
       @datefilter.accept_filter_config(format, @locale, @timezone)

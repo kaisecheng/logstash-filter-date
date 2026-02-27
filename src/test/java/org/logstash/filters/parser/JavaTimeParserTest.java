@@ -27,29 +27,10 @@ import java.util.Locale;
 
 import static org.junit.Assert.assertEquals;
 
-public class TAI64NParserTest {
+public class JavaTimeParserTest {
 
   private static Instant instant(String iso8601) {
     return Instant.parse(iso8601);
-  }
-
-  @Test
-  public void parsesStringWithoutAtPrefix() {
-    assertEquals(instant("2012-12-22T01:00:46.767422500Z"),
-            new TAI64NParser().parse("4000000050d506482dbdf024"));
-  }
-
-  @Test
-  public void parsesStringWithAtPrefix() {
-    assertEquals(instant("2012-12-22T01:00:46.767422500Z"),
-            new TAI64NParser().parse("@4000000050d506482dbdf024"));
-  }
-
-  @Test
-  public void parseWithTimeZoneIgnoresTimezone() {
-    Instant withoutTz = new TAI64NParser().parse("4000000050d506482dbdf024");
-    Instant withTz = new TAI64NParser().parseWithTimeZone("4000000050d506482dbdf024", "America/Los_Angeles");
-    assertEquals(withoutTz, withTz);
   }
 
   // Basic pattern with explicit timezone in constructor
@@ -91,7 +72,7 @@ public class TAI64NParserTest {
   public void parseWithTimeZoneOverridesConstructorTimezone() {
     JavaTimeParser parser = new JavaTimeParser("yyyy MMM dd HH:mm:ss", Locale.ENGLISH, "UTC");
     assertEquals(instant("2013-11-24T09:29:01Z"),
-            parser.parseWithTimeZone("2013 Nov 24 01:29:01", "America/Los_Angeles"));
+        parser.parseWithTimeZone("2013 Nov 24 01:29:01", "America/Los_Angeles"));
   }
 
   // Locale: parse month names in a specific language (pattern must include time for Instant resolution)
@@ -106,16 +87,16 @@ public class TAI64NParserTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void rejectsLong() {
-    new TAI64NParser().parse(1356134446L);
+    new JavaTimeParser("yyyy", Locale.ENGLISH, "UTC").parse(1478207457L);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void rejectsDouble() {
-    new TAI64NParser().parse(1356134446.767D);
+    new JavaTimeParser("yyyy", Locale.ENGLISH, "UTC").parse(1478207457.456D);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void rejectsBigDecimal() {
-    new TAI64NParser().parse(new BigDecimal("1356134446.767"));
+    new JavaTimeParser("yyyy", Locale.ENGLISH, "UTC").parse(new BigDecimal("1478207457.456"));
   }
 }

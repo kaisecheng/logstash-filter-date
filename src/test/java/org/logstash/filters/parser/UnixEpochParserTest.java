@@ -18,92 +18,97 @@
  */
 
 package org.logstash.filters.parser;
-import org.joda.time.Instant;
-import org.junit.Test;
-import java.util.Collection;
-import java.util.Random;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
-import java.math.BigDecimal;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.Test;
+
+import java.math.BigDecimal;
+import java.time.Instant;
 
 import static org.junit.Assert.assertEquals;
 
-@RunWith(Parameterized.class)
 public class UnixEpochParserTest {
-  static Random random = new Random();
 
-  // XXX: Make these be theories and rules instead.
-  @Parameters
-  public static Collection<Object[]> samples() {
-    int count = random.nextInt(1000) + 1;
-
-    // Create a random number of values to test
-    return LongStream.range(1, count)
-            .map(i -> Math.abs(random.nextLong() % Integer.MAX_VALUE))
-            .mapToObj(i -> new Object[] { new Instant(i), String.format("%d.%03d", i / 1000, i % 1000) })
-            .collect(Collectors.toList());
+  private static Instant instant(long epochSeconds, long nanos) {
+    return Instant.ofEpochSecond(epochSeconds, nanos);
   }
 
-  private Instant expected;
-  private String input;
-
-  public UnixEpochParserTest(Instant expected, String input) {
-    this.expected = expected;
-    this.input = input;
-  }
+  // parse(String) — integer seconds
 
   @Test
-  public void parsesEpoch0() {
-    Instant actual = new UnixEpochParser().parse(input);
-    assertEquals(expected, actual);
+  public void parsesIntegerStringSeconds() {
+    assertEquals(instant(1478207457, 0), new UnixEpochParser().parse("1478207457"));
   }
 
+  // parse(String) — 3 fractional digits (milliseconds)
+
   @Test
-  public void parsesEpochBigDecimal() {
-    Instant actual = new UnixEpochParser().parse(new BigDecimal(input));
-    assertEquals(expected, actual);
+  public void parsesStringWithMillisecondFraction() {
+    assertEquals(instant(1478207457, 123_000_000), new UnixEpochParser().parse("1478207457.123"));
+  }
+
+  // parse(String) — 6 fractional digits (microseconds)
+
+  @Test
+  public void parsesStringWithMicrosecondFraction() {
+    assertEquals(instant(1478207457, 123_456_000), new UnixEpochParser().parse("1478207457.123456"));
+  }
+
+  // parse(String) — 9 fractional digits (nanoseconds)
+
+  @Test
+  public void parsesStringWithNanosecondFraction() {
+    assertEquals(instant(1478207457, 123_456_789), new UnixEpochParser().parse("1478207457.123456789"));
+  }
+
+  // parse(String) — >9 fractional digits are silently truncated to 9
+
+  @Test
+  public void parsesStringTruncatesDigitsBeyondNine() {
+    assertEquals(instant(1478207457, 123_456_789), new UnixEpochParser().parse("1478207457.1234567890"));
   }
 
   // parse(Long)
 
   @Test
   public void parsesLongZero() {
-    assertEquals(new Instant(0), new UnixEpochParser().parse(0L));
-  }
-
-  @Test
-  public void parsesLongSeconds() {
-    assertEquals(new Instant(1000000000L * 1000), new UnixEpochParser().parse(1000000000L));
+    assertEquals(instant(0, 0), new UnixEpochParser().parse(0L));
   }
 
   @Test
   public void parsesLongKnownValue() {
-    assertEquals(new Instant(1478207457L * 1000), new UnixEpochParser().parse(1478207457L));
+    assertEquals(instant(1478207457, 0), new UnixEpochParser().parse(1478207457L));
   }
 
-  // parse(Double)
+  @Test(expected = IllegalArgumentException.class)
+  public void rejectsLongAboveMaxEpochSeconds() {
+    new UnixEpochParser().parse((long) Integer.MAX_VALUE + 1L);
+  }
+
+  // parse(Double) — limited to approximately microsecond precision
 
   @Test
   public void parsesDoubleWithFractionalSeconds() {
-    // 1478207457.456 → 2016-11-03T21:10:57.456Z
-    assertEquals(new Instant(1478207457456L), new UnixEpochParser().parse(1478207457.456D));
+    assertEquals(instant(1478207457, 456_000_000), new UnixEpochParser().parse(1478207457.456D));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void rejectsDoubleAboveMaxEpochSeconds() {
-    double aboveMax = (double) Integer.MAX_VALUE + 1.0;
-    new UnixEpochParser().parse(aboveMax);
+    new UnixEpochParser().parse((double) Integer.MAX_VALUE + 1.0);
   }
+
+  // parse(BigDecimal) — full nanosecond precision
 
   @Test
-  public void parsesBigDecimalWithMicrosecondPrecisionTruncatesToMillis() {
-    // BigDecimal from JSON float: 1350414944.123456 → truncated to 1350414944123 ms
-    assertEquals(new Instant(1350414944123L),
-        new UnixEpochParser().parse(new BigDecimal("1350414944.123456")));
+  public void parsesBigDecimalWithFullNanosecondPrecision() {
+    assertEquals(instant(1478207457, 123_456_789),
+        new UnixEpochParser().parse(new BigDecimal("1478207457.123456789")));
+  }
+
+  // parseWithTimeZone is a no-op (epoch is always UTC)
+
+  @Test
+  public void parseWithTimeZoneIgnoresTimezone() {
+    assertEquals(instant(1478207457, 123_456_789),
+        new UnixEpochParser().parseWithTimeZone("1478207457.123456789", "America/Los_Angeles"));
   }
 }
-

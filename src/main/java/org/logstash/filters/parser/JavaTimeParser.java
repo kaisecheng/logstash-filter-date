@@ -21,29 +21,35 @@ package org.logstash.filters.parser;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /**
- * Parses TAI64N timestamps with nanosecond-precision output.
+ * Parses date strings using java.time format patterns directly.
  *
- * <p>Uses {@code Instant.ofEpochSecond(seconds, nanos)}, preserving the full
- * nanosecond value rather than truncating to milliseconds.
+ * <p>Fractional-second letters ({@code S}) follow java.time rules: each {@code S}
+ * represents exactly one decimal digit, so {@code SSS} expects exactly 3 digits.
  */
-public class TAI64NParser implements TimestampParser {
+public class JavaTimeParser implements TimestampParser {
+  private final DateTimeFormatter formatter;
+
+  public JavaTimeParser(String pattern, Locale locale, String timezone) {
+    ZoneId zone = (timezone != null) ? ZoneId.of(timezone) : ZoneId.systemDefault();
+    this.formatter = DateTimeFormatter.ofPattern(pattern, locale != null ? locale : Locale.getDefault())
+        // withZone() is a fallback for zone-less inputs
+        // eg. withZone(Europe/Paris), input: "2013-11-24 01:29:01", output: "2013-11-24 00:29:01" (UTC)
+        .withZone(zone);
+  }
+
   @Override
   public Instant parse(String value) {
-    int offset = value.startsWith("@") ? 1 : 0;
+    return formatter.parse(value, Instant::from);
+  }
 
-    // https://cr.yp.to/libtai/tai64.html
-    // First 8 bytes (16 hex chars) of TAI64N are seconds. TAI64's unix epoch is at 2^62.
-    long secondsSinceEpoch = Long.parseLong(value.substring(offset, 16 + offset), 16) & ((1L << 62) - 1);
-    // Last 4 bytes (8 hex chars) of TAI64N are subsecond value in nanoseconds.
-    int nanoseconds = Integer.parseInt(value.substring(16 + offset, 24 + offset), 16);
-
-    // Compensate for leap seconds to convert TAI to UTC.
-    // XXX: Leap seconds aren't this simple. We need to find out what times each leap second was introduced.
-    secondsSinceEpoch -= 10;
-
-    return Instant.ofEpochSecond(secondsSinceEpoch, nanoseconds);
+  @Override
+  public Instant parseWithTimeZone(String value, String timezone) {
+    return formatter.withZone(ZoneId.of(timezone)).parse(value, Instant::from);
   }
 
   @Override
@@ -59,10 +65,5 @@ public class TAI64NParser implements TimestampParser {
   @Override
   public Instant parse(BigDecimal value) {
     throw new IllegalArgumentException("Expected a string value, but got a bigdecimal (" + value + "). Cannot parse date.");
-  }
-
-  @Override
-  public Instant parseWithTimeZone(String value, String timezone) {
-    return parse(value);
   }
 }

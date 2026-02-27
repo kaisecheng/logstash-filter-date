@@ -21,20 +21,25 @@ package org.logstash.filters.parser;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.Instant;
-import org.joda.time.format.ISODateTimeFormat;
 import org.junit.After;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Locale;
 
 import static org.junit.Assert.assertEquals;
+import static org.logstash.filters.parser.TimestampParserFactory.PRECISION_MS;
 
 public class JodaParserTest {
 
   private static Instant instant(String iso8601) {
-    return ISODateTimeFormat.dateTimeParser().withZoneUTC().parseDateTime(iso8601).toInstant();
+    return Instant.parse(iso8601);
+  }
+
+  private static int yearOf(Instant instant) {
+    return instant.atZone(ZoneOffset.UTC).getYear();
   }
 
   @After
@@ -44,14 +49,14 @@ public class JodaParserTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void emptyShouldFail() {
-    new TimestampParserFactory().makeParser("", "en", "UTC");
+    new TimestampParserFactory().makeParser("", "en", "UTC", PRECISION_MS);
   }
 
   @Test
   public void onePattern() {
     JodaParser parser = new JodaParser("YYYY", null, null);
     Instant instant = parser.parse("2016");
-    assertEquals(2016, instant.toDateTime().getYear());
+    assertEquals(2016, yearOf(instant));
   }
 
   // Year guessing: December event arriving in January → previous year
@@ -61,7 +66,7 @@ public class JodaParserTest {
     JodaParser.setDefaultClock(() -> new DateTime(2014, 1, 1, 0, 30, 50, DateTimeZone.UTC));
     JodaParser parser = new JodaParser("MMM dd HH:mm:ss", Locale.ENGLISH, "UTC");
     Instant result = parser.parse("Dec 31 23:59:00");
-    assertEquals(2013, result.toDateTime(DateTimeZone.UTC).getYear());
+    assertEquals(2013, yearOf(result));
   }
 
   // Year guessing: January event arriving in December → next year
@@ -71,7 +76,7 @@ public class JodaParserTest {
     JodaParser.setDefaultClock(() -> new DateTime(2013, 12, 31, 23, 59, 50, DateTimeZone.UTC));
     JodaParser parser = new JodaParser("MMM dd HH:mm:ss", Locale.ENGLISH, "UTC");
     Instant result = parser.parse("Jan 01 01:00:00");
-    assertEquals(2014, result.toDateTime(DateTimeZone.UTC).getYear());
+    assertEquals(2014, yearOf(result));
   }
 
   // Year guessing: normal case → current year
@@ -81,7 +86,7 @@ public class JodaParserTest {
     JodaParser.setDefaultClock(() -> new DateTime(2016, 6, 15, 12, 0, 0, DateTimeZone.UTC));
     JodaParser parser = new JodaParser("MMM dd HH:mm:ss", Locale.ENGLISH, "UTC");
     Instant result = parser.parse("Mar 01 00:00:00");
-    assertEquals(2016, result.toDateTime(DateTimeZone.UTC).getYear());
+    assertEquals(2016, yearOf(result));
   }
 
   // Static timezone in constructor

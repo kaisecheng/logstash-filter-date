@@ -19,12 +19,19 @@
 
 package org.logstash.filters;
 
-import org.joda.time.Instant;
 import org.logstash.Event;
 import org.logstash.Timestamp;
 
+import java.time.Instant;
+
 class TimestampSetter implements ResultSetter {
+  private final boolean isNano;
+
+  TimestampSetter(boolean isNano) {
+    this.isNano = isNano;
+  }
+
   public void set(Event event, Instant instant) {
-    event.setTimestamp(new Timestamp(instant.getMillis()));
+    event.setTimestamp(isNano ? new Timestamp(instant) : new Timestamp(instant.toEpochMilli()));
   }
 }

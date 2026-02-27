@@ -19,11 +19,11 @@
 
 package org.logstash.filters;
 
-import org.joda.time.Instant;
 import org.logstash.Event;
 import org.logstash.filters.parser.TimestampParser;
 
 import java.io.IOException;
+import java.time.Instant;
 
 class DynamicTzInputHandler implements InputHandler {
   private TimestampParser parser;

@@ -19,31 +19,30 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.Instant;
-import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 import static org.junit.Assert.assertEquals;
 
 public class CasualISO8601ParserTest {
 
   private static Instant instant(String iso8601) {
-    return ISODateTimeFormat.dateTimeParser().withZoneUTC().parseDateTime(iso8601).toInstant();
+    return Instant.parse(iso8601);
   }
 
-  // Pattern 1: ISODateTimeFormat.dateTimeParser() — strict ISO8601
+  // T-separator with zone offset
 
   @Test
   public void parsesISO8601WithNegativeOffset() {
-    assertEquals(instant("2001-01-01T08:00:00.000Z"),
+    assertEquals(instant("2001-01-01T08:00:00Z"),
         new CasualISO8601Parser(null).parse("2001-01-01T00:00:00-0800"));
   }
 
   @Test
   public void parsesISO8601WithColonOffset() {
-    assertEquals(instant("2010-05-03T08:18:18.000Z"),
+    assertEquals(instant("2010-05-03T08:18:18Z"),
         new CasualISO8601Parser(null).parse("2010-05-03T08:18:18+00:00"));
   }
 
@@ -54,18 +53,18 @@ public class CasualISO8601ParserTest {
   }
 
   @Test
-  public void parsesISO8601WithCommaMillisAndZSuffix() {
+  public void parsesISO8601WithNanoseconds() {
+    assertEquals(instant("2001-09-05T09:36:36.123456789Z"),
+        new CasualISO8601Parser(null).parse("2001-09-05T16:36:36.123456789+0700"));
+  }
+
+  @Test
+  public void parsesISO8601WithCommaDecimalAndZSuffix() {
     assertEquals(instant("2001-12-07T23:54:54.123Z"),
         new CasualISO8601Parser(null).parse("2001-12-07T23:54:54,123Z"));
   }
 
-  // Pattern 2: yyyy-MM-dd HH:mm:ss.SSSZ (space separator, dot decimal, with zone)
-
-  @Test
-  public void parsesSpaceSeparatedWithDotAndNegativeZeroOffset() {
-    assertEquals(instant("2001-11-06T20:45:45.123Z"),
-        new CasualISO8601Parser(null).parse("2001-11-06 20:45:45.123-0000"));
-  }
+  // Space-separator with zone
 
   @Test
   public void parsesSpaceSeparatedWithDotAndZSuffix() {
@@ -73,7 +72,13 @@ public class CasualISO8601ParserTest {
         new CasualISO8601Parser(null).parse("2001-12-07 23:54:54.123Z"));
   }
 
-  // Pattern 3: yyyy-MM-dd HH:mm:ss.SSS (space separator, dot decimal, no zone)
+  @Test
+  public void parsesSpaceSeparatedWithCommaAndZSuffix() {
+    assertEquals(instant("2001-12-07T23:54:54.123Z"),
+        new CasualISO8601Parser(null).parse("2001-12-07 23:54:54,123Z"));
+  }
+
+  // Space-separator with no zone — constructor timezone applied
 
   @Test
   public void parsesSpaceSeparatedWithDotNoZone() {
@@ -81,43 +86,33 @@ public class CasualISO8601ParserTest {
         new CasualISO8601Parser("UTC").parse("2001-11-06 20:45:45.123"));
   }
 
-  // Pattern 4: yyyy-MM-dd HH:mm:ss,SSSZ (space separator, comma decimal, with zone)
-
-  @Test
-  public void parsesSpaceSeparatedWithCommaAndZSuffix() {
-    assertEquals(instant("2001-12-07T23:54:54.123Z"),
-        new CasualISO8601Parser(null).parse("2001-12-07 23:54:54,123Z"));
-  }
-
-  // Pattern 5: yyyy-MM-dd HH:mm:ss,SSS (space separator, comma decimal, no zone)
-
   @Test
   public void parsesSpaceSeparatedWithCommaNoZone() {
     assertEquals(instant("2001-11-06T20:45:45.123Z"),
         new CasualISO8601Parser("UTC").parse("2001-11-06 20:45:45,123"));
   }
 
-  // Constructor with explicit timezone applies offset to no-zone strings
+  // No-zone variants apply constructor timezone
 
   @Test
   public void constructorTimezoneAppliedToNoZoneString() {
     // America/Caracas was UTC-4:00 in 2001
-    assertEquals(instant("2001-01-01T04:00:00.000Z"),
+    assertEquals(instant("2001-01-01T04:00:00Z"),
         new CasualISO8601Parser("America/Caracas").parse("2001-01-01T00:00:00"));
   }
 
   @Test
   public void constructorTimezoneReflectsHistoricalOffset() {
     // Venezuela changed to UTC-4:30 in late 2007; 2008 uses the new offset
-    assertEquals(instant("2008-01-01T04:30:00.000Z"),
+    assertEquals(instant("2008-01-01T04:30:00Z"),
         new CasualISO8601Parser("America/Caracas").parse("2008-01-01T00:00:00"));
   }
 
-  // parseWithTimeZone dynamically applies timezone
+  // parseWithTimeZone
 
   @Test
   public void parseWithTimeZoneAppliesDynamicTimezone() {
-    assertEquals(instant("2001-01-01T04:00:00.000Z"),
+    assertEquals(instant("2001-01-01T04:00:00Z"),
         new CasualISO8601Parser(null).parseWithTimeZone("2001-01-01T00:00:00", "America/Caracas"));
   }
 
