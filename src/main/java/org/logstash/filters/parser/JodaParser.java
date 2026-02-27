@@ -21,11 +21,11 @@ package org.logstash.filters.parser;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-import java.math.BigDecimal;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Locale;
 
 public class JodaParser implements TimestampParser {
@@ -60,9 +60,8 @@ public class JodaParser implements TimestampParser {
 
   @Override
   public Instant parse(String value) {
-
     if (hasYear) {
-      return new Instant(parser.parseMillis(value));
+      return Instant.ofEpochMilli(parser.parseMillis(value));
     } else {
       return parseAndGuessYear(parser, value);
     }
@@ -88,7 +87,7 @@ public class JodaParser implements TimestampParser {
     DateTimeZone tz = DateTimeZone.forID(timezone);
     DateTimeFormatter parserWithZone = parser.withZone(tz);
     if (hasYear) {
-      return new Instant(parserWithZone.parseMillis(value));
+      return Instant.ofEpochMilli(parserWithZone.parseMillis(value));
     } else {
       return parseAndGuessYear(parserWithZone, value);
     }
@@ -120,7 +119,7 @@ public class JodaParser implements TimestampParser {
       eventYear = now.getYear();
     }
 
-    return dateTime.withYear(eventYear).toInstant();
+    return Instant.ofEpochMilli(dateTime.withYear(eventYear).toInstant().getMillis());
   }
 
 }

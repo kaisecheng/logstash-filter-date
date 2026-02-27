@@ -19,13 +19,11 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.DateTimeZone;
-
 import java.util.Locale;
 
 public class TimestampParserFactory {
-  private DateTimeZone timezone;
-
+  public static final String PRECISION_NS = "ns";
+  public static final String PRECISION_MS = "ms";
   private static final String ISO8601 = "ISO8601";
   private static final String UNIX = "UNIX";
   private static final String UNIX_MS = "UNIX_MS";
@@ -34,38 +32,23 @@ public class TimestampParserFactory {
   /*
    * zone is a String because it can be dynamic and come from the event while we parse it.
    */
-  public static TimestampParser makeParser(String pattern, Locale locale, String zone) {
-    if (locale == null) {
-      locale = Locale.getDefault();
-    }
+  public static TimestampParser makeParser(String pattern, String locale, String zone, String precision) {
+    return makeParser(pattern, locale == null ? Locale.getDefault() : Locale.forLanguageTag(locale), zone, precision);
+  }
 
-    String tz = zone;
-
-    if (tz == null) {
-      tz = DateTimeZone.getDefault().getID();
-    } else if (zone.contains("%{")) {
-      tz = null;
-    }
+  private static TimestampParser makeParser(String pattern, Locale locale, String zone, String precision) {
+    // If zone contains "%{", it is dynamic and will be resolved per-event via parseWithTimeZone.
+    String tz = (zone == null || zone.contains("%{")) ? null : zone;
 
     switch (pattern) {
-      case ISO8601: // Short-hand for a few ISO8601-ish formats
-        return new CasualISO8601Parser(tz);
-      case UNIX: // Unix epoch in seconds
-        return new UnixEpochParser();
-      case TAI64N: // TAI64N format
-        return new TAI64NParser();
-      case UNIX_MS: // Unix epoch in milliseconds
-        return new UnixMillisEpochParser();
+      case ISO8601: return new CasualISO8601Parser(tz);
+      case UNIX:    return new UnixEpochParser();
+      case UNIX_MS: return new UnixMillisEpochParser();
+      case TAI64N:  return new TAI64NParser();
       default:
-        return new JodaParser(pattern, locale, tz);
+        return PRECISION_NS.equals(precision)
+            ? new JavaTimeParser(pattern, locale, tz)
+            : new JodaParser(pattern, locale, tz);
     }
-  }
-
-  public static TimestampParser makeParser(String pattern) {
-    return makeParser(pattern, (Locale)null, null);
-  }
-
-  public static TimestampParser makeParser(String pattern, String locale, String zone) {
-    return makeParser(pattern, locale == null ? null : Locale.forLanguageTag(locale), zone);
   }
 }

@@ -21,19 +21,25 @@ package org.logstash.filters;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.joda.time.Instant;
 import org.logstash.Event;
 import org.logstash.ext.JrubyEventExtLibrary.RubyEvent;
 import org.logstash.filters.parser.CasualISO8601Parser;
+import org.logstash.filters.parser.JavaTimeParser;
 import org.logstash.filters.parser.JodaParser;
 import org.logstash.filters.parser.TimestampParser;
 import org.logstash.filters.parser.TimestampParserFactory;
 
 import java.io.IOException;
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.logstash.filters.parser.TimestampParserFactory.PRECISION_NS;
+
 public class DateFilter {
+
+
   private static Logger logger = LogManager.getLogger(DateFilter.class);
   private final String sourceField;
   private final String[] tagOnFailure;
@@ -41,35 +47,47 @@ public class DateFilter {
   private RubyResultHandler failureHandler;
   private final List<ParserExecutor> executors = new ArrayList<>();
   private final ResultSetter setter;
+  private final String precision;
 
   public interface RubyResultHandler {
     void handle(RubyEvent event);
   }
 
-  public DateFilter(String sourceField, String targetField, List<String> tagOnFailure, RubyResultHandler successHandler, RubyResultHandler failureHandler) {
-    this(sourceField, targetField, tagOnFailure);
+  public DateFilter(String sourceField, String targetField, List<String> tagOnFailure, String precision,
+                    RubyResultHandler successHandler, RubyResultHandler failureHandler) {
+    this(sourceField, targetField, tagOnFailure, precision);
     this.successHandler = successHandler;
     this.failureHandler = failureHandler;
   }
 
-  public DateFilter(String sourceField, String targetField, List<String> tagOnFailure) {
+  public DateFilter(String sourceField, String targetField, List<String> tagOnFailure, String precision) {
     this.sourceField = sourceField;
     this.tagOnFailure = tagOnFailure.toArray(new String[0]);
+    this.precision = precision;
+    boolean isNano = PRECISION_NS.equals(precision);
     if (targetField.equals("@timestamp")) {
-      this.setter = new TimestampSetter();
+      this.setter = new TimestampSetter(isNano);
     } else {
-      this.setter = new FieldSetter(targetField);
+      this.setter = new FieldSetter(targetField, isNano);
     }
   }
 
   public void acceptFilterConfig(String format, String locale, String timezone) {
-    TimestampParser parser = TimestampParserFactory.makeParser(format, locale, timezone);
-    logger.debug("Date filter with format={}, locale={}, timezone={} built as {}", format, locale, timezone, parser.getClass().getName());
-    if (parser instanceof JodaParser || parser instanceof CasualISO8601Parser) {
+    TimestampParser parser = TimestampParserFactory.makeParser(format, locale, timezone, precision);
+    logger.debug("Date filter with format={}, locale={}, timezone={}, precision={} built as {}",
+        format, locale, timezone, precision, parser.getClass().getName());
+
+    if (isTextParser(parser)) {
       executors.add(new TextParserExecutor(parser, timezone));
     } else {
       executors.add(new NumericParserExecutor(parser));
     }
+  }
+
+  private boolean isTextParser(TimestampParser parser) {
+    return parser instanceof JodaParser
+        || parser instanceof CasualISO8601Parser
+        || parser instanceof JavaTimeParser;
   }
 
   public List<RubyEvent> receive(List<RubyEvent> rubyEvents) {
@@ -108,7 +126,7 @@ public class DateFilter {
         Instant instant = executor.execute(input, event);
         setter.set(event, instant);
         return ParseExecutionResult.SUCCESS;
-      } catch (IllegalArgumentException | IOException e) {
+      } catch (IllegalArgumentException | IOException | DateTimeException e) {
         // do nothing, try next ParserExecutor
       }
     }

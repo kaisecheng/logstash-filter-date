@@ -19,18 +19,21 @@
 
 package org.logstash.filters;
 
-import org.joda.time.Instant;
 import org.logstash.Event;
 import org.logstash.Timestamp;
 
-class FieldSetter implements ResultSetter {
-  private String target;
+import java.time.Instant;
 
-  FieldSetter(String target) {
+class FieldSetter implements ResultSetter {
+  private final String target;
+  private final boolean nsMode;
+
+  FieldSetter(String target, boolean nsMode) {
     this.target = target;
+    this.nsMode = nsMode;
   }
 
   public void set(Event event, Instant instant) {
-    event.setField(this.target, new Timestamp(instant.getMillis()));
+    event.setField(this.target, nsMode ? new Timestamp(instant) : new Timestamp(instant.toEpochMilli()));
   }
 }

@@ -19,15 +19,16 @@
 
 package org.logstash.filters;
 
-import org.joda.time.Instant;
 import org.logstash.Event;
 import org.logstash.filters.parser.TimestampParser;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
 
 class NumericParserExecutor implements ParserExecutor {
   private TimestampParser parser;
+
   public NumericParserExecutor(TimestampParser parser) {
     this.parser = parser;
   }

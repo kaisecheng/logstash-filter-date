@@ -19,10 +19,10 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.Instant;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 import static org.junit.Assert.assertEquals;
 
@@ -30,58 +30,66 @@ public class UnixMillisEpochParserTest {
 
   private static final long MAX_EPOCH_MILLISECONDS = (long) Integer.MAX_VALUE * 1000;
 
+  private static Instant instant(long epochMillis) {
+    return Instant.ofEpochMilli(epochMillis);
+  }
+
   // parse(String)
 
   @Test
   public void parsesStringZero() {
-    assertEquals(new Instant(0), new UnixMillisEpochParser().parse("0"));
+    assertEquals(instant(0), new UnixMillisEpochParser().parse("0"));
   }
 
   @Test
   public void parsesStringMillis() {
-    assertEquals(new Instant(456), new UnixMillisEpochParser().parse("456"));
+    assertEquals(instant(456), new UnixMillisEpochParser().parse("456"));
   }
 
   @Test
   public void parsesStringLargeMillis() {
-    assertEquals(new Instant(1000000000123L), new UnixMillisEpochParser().parse("1000000000123"));
+    assertEquals(instant(1000000000123L), new UnixMillisEpochParser().parse("1000000000123"));
   }
 
   // parse(Long)
 
   @Test
   public void parsesLongZero() {
-    assertEquals(new Instant(0), new UnixMillisEpochParser().parse(0L));
+    assertEquals(instant(0), new UnixMillisEpochParser().parse(0L));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void rejectsLongAboveMaxEpochMilliseconds() {
+    new UnixMillisEpochParser().parse(MAX_EPOCH_MILLISECONDS + 1);
   }
 
   @Test
   public void parsesLongMillis() {
-    assertEquals(new Instant(456), new UnixMillisEpochParser().parse(456L));
+    assertEquals(instant(456), new UnixMillisEpochParser().parse(456L));
   }
 
   @Test
   public void parsesLongLargeMillis() {
-    assertEquals(new Instant(1000000000123L), new UnixMillisEpochParser().parse(1000000000123L));
+    assertEquals(instant(1000000000123L), new UnixMillisEpochParser().parse(1000000000123L));
   }
 
-  // parse(Double) — truncates to Long via Double.longValue()
+  // parse(Double) — truncates to long
 
   @Test
   public void parsesDoubleTruncatesToLong() {
-    // 456.789D.longValue() == 456
-    assertEquals(new Instant(456), new UnixMillisEpochParser().parse(456.789D));
+    assertEquals(instant(456), new UnixMillisEpochParser().parse(456.789D));
   }
 
   // parse(BigDecimal)
 
   @Test
   public void parsesBigDecimalMillis() {
-    assertEquals(new Instant(456), new UnixMillisEpochParser().parse(new BigDecimal("456")));
+    assertEquals(instant(456), new UnixMillisEpochParser().parse(new BigDecimal("456")));
   }
 
   @Test
   public void parsesBigDecimalAtMaxBoundary() {
-    assertEquals(new Instant(MAX_EPOCH_MILLISECONDS),
+    assertEquals(instant(MAX_EPOCH_MILLISECONDS),
         new UnixMillisEpochParser().parse(new BigDecimal(MAX_EPOCH_MILLISECONDS)));
   }
 
@@ -94,7 +102,7 @@ public class UnixMillisEpochParserTest {
 
   @Test
   public void parseWithTimeZoneIgnoresTimezone() {
-    assertEquals(new UnixMillisEpochParser().parse("1000000000123"),
+    assertEquals(instant(1000000000123L),
         new UnixMillisEpochParser().parseWithTimeZone("1000000000123", "America/Los_Angeles"));
   }
 }

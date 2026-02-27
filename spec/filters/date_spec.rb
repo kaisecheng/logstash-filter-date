@@ -520,4 +520,85 @@ RUBY_ENGINE == "jruby" and describe LogStash::Filters::Date do
       end
     end
   end
+
+  describe "precision => ns, java.time with nanoseconds" do
+    config <<-CONFIG
+      filter {
+        date {
+          match => [ "mydate", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS VV" ]
+          precision => "ns"
+        }
+      }
+    CONFIG
+
+    sample({"mydate" => "2016-11-03 21:10:57.123456789 America/New_York"}) do
+      insist { subject.get("@timestamp").time.to_i } == 1478221857
+      insist { subject.get("@timestamp").time.nsec } == 123456789
+    end
+  end
+
+  describe "precision => ns, ISO8601 with nanoseconds" do
+    config <<-CONFIG
+      filter {
+        date {
+          match => [ "mydate", "ISO8601" ]
+          precision => "ns"
+        }
+      }
+    CONFIG
+
+    sample({"mydate" => "2016-11-03T21:10:57.123456789Z"}) do
+      insist { subject.get("@timestamp").time.to_i } == 1478207457
+      insist { subject.get("@timestamp").time.nsec } == 123456789
+    end
+  end
+
+  describe "precision => ns, UNIX epoch string with nanoseconds" do
+    config <<-CONFIG
+      filter {
+        date {
+          match => [ "mydate", "UNIX" ]
+          precision => "ns"
+        }
+      }
+    CONFIG
+
+    sample({"mydate" => "1478207457.123456789"}) do
+      insist { subject.get("@timestamp").time.to_i } == 1478207457
+      insist { subject.get("@timestamp").time.nsec } == 123456789
+    end
+  end
+
+  describe "precision => ns, TAI64N full nanoseconds" do
+    config <<-CONFIG
+      filter {
+        date {
+          match => [ "mydate", "TAI64N" ]
+          precision => "ns"
+        }
+      }
+    CONFIG
+
+    sample({"mydate" => "4000000050d506482dbdf024"}) do
+      # 0x2dbdf024 = 767422500 ns
+      insist { subject.get("@timestamp").time.to_i } == 1356138046
+      insist { subject.get("@timestamp").time.nsec } == 767422500
+    end
+  end
+
+  describe "precision => ms (default) still truncates to milliseconds" do
+    config <<-CONFIG
+      filter {
+        date {
+          match => [ "mydate", "TAI64N" ]
+          precision => "ms"
+        }
+      }
+    CONFIG
+
+    sample({"mydate" => "4000000050d506482dbdf024"}) do
+      insist { subject.get("@timestamp").time.to_i } == 1356138046
+      insist { subject.get("@timestamp").time.nsec } == 767000000
+    end
+  end
 end

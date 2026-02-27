@@ -19,8 +19,8 @@
 
 package org.logstash.filters.parser;
 
-import org.joda.time.Instant;
 import java.math.BigDecimal;
+import java.time.Instant;
 
 public interface TimestampParser {
   Instant parse(String value);
