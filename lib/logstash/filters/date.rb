@@ -57,9 +57,8 @@ class LogStash::Filters::Date < LogStash::Filters::Base
   # There are a few special exceptions. The following format literals exist
   # to help you save time and ensure correctness of date parsing.
   #
-  # * `ISO8601` - should parse any valid ISO8601 timestamp, such as
-  #   `2011-04-19T03:44:01.103Z`
-  # * `UNIX` - will parse *float or int* value expressing unix time in seconds since epoch like 1326149001.132 as well as 1326149001
+  # * `ISO8601` - should parse any valid ISO8601 timestamp with up to 9 fractional-second digits
+  # * `UNIX` - will parse *float or int* value expressing unix time in seconds since epoch like 1326149001.123456789 as well as 1326149001
   # * `UNIX_MS` - will parse **int** value expressing unix time in milliseconds since epoch like 1366125117000
   # * `TAI64N` - will parse tai64n time values
   #
@@ -112,10 +111,11 @@ class LogStash::Filters::Date < LogStash::Filters::Base
   #   ss::: two-digit seconds, zero-padded if needed. Example: `00`.
   #
   # S:: fraction of a second
-  #   *Maximum precision is milliseconds (`SSS`). Beyond that, zeroes are appended.*
   #   S::: tenths of a second. Example:  `0` for a subsecond value `012`
   #   SS::: hundredths of a second. Example:  `01` for a subsecond value `01`
-  #   SSS::: thousandths of a second. Example:  `012` for a subsecond value `012`
+  #   SSS::: milliseconds. Example:  `012` for a subsecond value `012`
+  #   SSSSSS::: microseconds.
+  #   SSSSSSSSS::: nanoseconds.
   #
   # Z:: time zone offset or identity
   #   Z::: Timezone offset structured as HHmm (hour and minutes offset from Zulu/UTC). Example: `-0700`.
@@ -150,9 +150,10 @@ class LogStash::Filters::Date < LogStash::Filters::Base
   # successful match
   config :tag_on_failure, :validate => :array, :default => ["_dateparsefailure"]
 
-  # Controls the sub-second precision of the parsed timestamp.
-  # Use `"ms"` (default) for millisecond precision
-  # Use `"ns"` for nanosecond precision
+  # Controls the sub-second precision of the stored timestamp.
+  #
+  # `"ms"` (default):: Stores in millisecond precision. Custom-pattern formats use Joda-Time parsing rules.
+  # `"ns"`:: Stores in nanosecond precision. Custom-pattern formats use java.time parsing rules.
   config :precision, :validate => [Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_MS,
                                    Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_NS],
                           :default => Java::OrgLogstashFiltersParser::TimestampParserFactory::PRECISION_MS
@@ -192,7 +193,7 @@ class LogStash::Filters::Date < LogStash::Filters::Base
       @datefilter.accept_filter_config(format, @locale, @timezone)
 
       # Offer a fallback parser such that if the default system Locale is non-english and that no locale is set,
-      # we should try to parse english if the first local parsing fails.:w
+      # we should try to parse english if the first local parsing fails.
       if !@locale && "en" != java.util.Locale.getDefault().getLanguage() && (format.include?("MMM") || format.include?("E"))
         @datefilter.accept_filter_config(format, "en-US", @timezone)
       end
