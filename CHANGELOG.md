@@ -1,3 +1,14 @@
+## 3.2.0
+  - Add `precision` setting to control sub-second timestamp storage precision
+    - `ms` (default): timestamps are stored with millisecond precision
+      - keeps the same behavior as before for backward compatibility
+      - fractional seconds are truncated to 3 digits
+      - custom parsing formats use `joda-time` library
+    - `ns`: timestamps are stored with nanosecond precision
+      - fractional seconds support up to 9 digits
+      - custom parsing formats use `java.time`
+  - `ISO8601` now accepts up to 9 fractional-second digits
+
 ## 3.1.16
   - Re-packaging the plugin [#163](https://github.com/logstash-plugins/logstash-filter-date/pull/163)
 
