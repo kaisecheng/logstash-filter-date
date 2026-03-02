@@ -8,6 +8,7 @@ import org.junit.Test;
 import org.logstash.Event;
 import org.logstash.Timestamp;
 import org.logstash.filters.parser.JodaParser;
+import org.logstash.filters.parser.TimestampParserFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +39,7 @@ public class DateFilterTest {
 
     @Test
     public void testIsoStrings() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("ISO8601", loc, tz);
         applyString(subject, "2001-01-01T00:00:00-0800", "2001-01-01T08:00:00.000Z");
     }
@@ -47,7 +48,7 @@ public class DateFilterTest {
     public void testPatternStringsInterpolateTzNoYear() {
         TestClock clk = new TestClock(new DateTime(2016,03,29,23,59,50, DateTimeZone.UTC ));
         JodaParser.setDefaultClock(clk);
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("MMM dd hh:mm:ss.SSS", loc, "%{mytz}");
         applyStringTz(subject, "Mar 27 01:59:59.999", "2016-03-27T00:59:59.999Z", "CET");
         applyStringTz(subject, "Mar 27 03:00:01.000", "2016-03-27T01:00:01.000Z", "CET"); // after CET to CEST change at 02:00
@@ -57,7 +58,7 @@ public class DateFilterTest {
     public void testPatternStringsInterpolateTzNoYearFailsOnNotExistingTime() {
         TestClock clk = new TestClock(new DateTime(2016,03,29,23,59,50, DateTimeZone.UTC ));
         JodaParser.setDefaultClock(clk);
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("MMM dd hh:mm:ss.SSS", loc, "%{mytz}");
         // Verify
         Event event = new Event();
@@ -69,7 +70,7 @@ public class DateFilterTest {
 
     @Test
     public void testIsoStringsInterpolateTz() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("ISO8601", loc, "%{mytz}");
         applyStringTz(subject, "2001-01-01T00:00:00", "2001-01-01T04:00:00.000Z", "America/Caracas");
         applyStringTz(subject, "1974-03-02T04:09:09", "1974-03-02T08:09:09.000Z", "America/Caracas");
@@ -82,41 +83,41 @@ public class DateFilterTest {
 
     @Test
     public void testTai64Strings() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("TAI64N", loc, tz);
         applyString(subject, "4000000050d506482dbdf024", "2012-12-22T01:00:46.767Z");
     }
 
     @Test
     public void testUnixStrings() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyString(subject, "1478207457", "2016-11-03T21:10:57.000Z");
     }
     @Test
     public void testUnixInts() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyInt(subject, 1478207457, "2016-11-03T21:10:57.000Z");
     }
 
     @Test
     public void testUnixLongs() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyLong(subject, 1478207457L, "2016-11-03T21:10:57.000Z");
     }
 
     @Test
     public void testUnixDouble() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyDouble(subject, 1478207457.456D, "2016-11-03T21:10:57.456Z");
     }
 
     @Test
     public void testUnixMillisLong() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX_MS", loc, tz);
         applyLong(subject, 1000000000123L, "2001-09-09T01:46:40.123Z");
     }
@@ -124,7 +125,7 @@ public class DateFilterTest {
     @Test
     public void testUnresolvedTemplateStringDoesNotParseAsZero() {
         // Regression: unresolved %{field} template must not silently parse as 0
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
 
         Event event = new Event();
@@ -135,7 +136,7 @@ public class DateFilterTest {
 
     @Test
     public void testCancelledEvent() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ms");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
 
         Event event = new Event();
@@ -151,56 +152,56 @@ public class DateFilterTest {
 
     @Test
     public void testNsISO8601PreservesNanoseconds() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("ISO8601", loc, tz);
         applyString(subject, "1974-03-02T04:09:09.123456789-0800", "1974-03-02T12:09:09.123456789Z");
     }
 
     @Test
     public void testNsUnixString() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyString(subject, "1478207457.123456789", "2016-11-03T21:10:57.123456789Z");
     }
 
     @Test
     public void testNsUnixInts() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyInt(subject, 1478207457, "2016-11-03T21:10:57Z");
     }
 
     @Test
     public void testNsUnixLongs() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyLong(subject, 1478207457L, "2016-11-03T21:10:57Z");
     }
 
     @Test
     public void testNsUnixDouble() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("UNIX", loc, tz);
         applyDouble(subject, 1478207457.456789D, "2016-11-03T21:10:57.456789Z");
     }
 
     @Test
     public void testNsUnixMillisLong() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("UNIX_MS", loc, tz);
         applyLong(subject, 1000000000123L, "2001-09-09T01:46:40.123Z");
     }
 
     @Test
     public void testNsTAI64NPreservesNanoseconds() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("TAI64N", loc, tz);
         applyString(subject, "4000000050d506482dbdf024", "2012-12-22T01:00:46.767422500Z");
     }
 
     @Test
     public void testNsDynamicTimezone() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, "ns");
+        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_NS);
         subject.acceptFilterConfig("ISO8601", loc, "%{mytz}");
         applyStringTz(subject, "2001-01-01T00:00:00.123456789", "2001-01-01T04:00:00.123456789Z", "America/Caracas");
     }
