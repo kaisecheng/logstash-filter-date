@@ -73,6 +73,8 @@ public class DateFilterTest {
         DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("ISO8601", loc, "%{mytz}");
         applyStringTz(subject, "2001-01-01T00:00:00", "2001-01-01T04:00:00.000Z", "America/Caracas");
+        applyStringTz(subject, "2001-01-01T00:00:00.123456", "2001-01-01T04:00:00.123Z", "America/Caracas");
+        applyStringTz(subject, "2001-01-01T00:00:00.123456789", "2001-01-01T04:00:00.123Z", "America/Caracas");
         applyStringTz(subject, "1974-03-02T04:09:09", "1974-03-02T08:09:09.000Z", "America/Caracas");
         applyStringTz(subject, "2006-01-01T00:00:00", "2006-01-01T04:00:00.000Z", "America/Caracas");
         // Venezuela changed from -4:00 to -4:30 in late 2007
@@ -89,34 +91,23 @@ public class DateFilterTest {
     }
 
     @Test
-    public void testUnixStrings() {
+    public void testUnix() {
         DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX", loc, tz);
-        applyString(subject, "1478207457", "2016-11-03T21:10:57.000Z");
-    }
-    @Test
-    public void testUnixInts() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
-        subject.acceptFilterConfig("UNIX", loc, tz);
-        applyInt(subject, 1478207457, "2016-11-03T21:10:57.000Z");
-    }
-
-    @Test
-    public void testUnixLongs() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
-        subject.acceptFilterConfig("UNIX", loc, tz);
-        applyLong(subject, 1478207457L, "2016-11-03T21:10:57.000Z");
-    }
-
-    @Test
-    public void testUnixDouble() {
-        DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
-        subject.acceptFilterConfig("UNIX", loc, tz);
+        // string
+        applyString(subject, "1478207457.123", "2016-11-03T21:10:57.123Z");
+        applyString(subject, "1478207457.123456789", "2016-11-03T21:10:57.123Z");
+        // int
+        applyInt(subject, 1478207457, "2016-11-03T21:10:57Z");
+        // long
+        applyLong(subject, 1478207457L, "2016-11-03T21:10:57Z");
+        // double
         applyDouble(subject, 1478207457.456D, "2016-11-03T21:10:57.456Z");
+        applyDouble(subject, 1478207457.456789D, "2016-11-03T21:10:57.456Z");
     }
 
     @Test
-    public void testUnixMillisLong() {
+    public void testUnixMillis() {
         DateFilter subject = new DateFilter("[happened_at]", "[result_ts]", failtagList, TimestampParserFactory.PRECISION_MS);
         subject.acceptFilterConfig("UNIX_MS", loc, tz);
         applyLong(subject, 1000000000123L, "2001-09-09T01:46:40.123Z");
