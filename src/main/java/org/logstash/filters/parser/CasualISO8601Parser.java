@@ -49,8 +49,7 @@ public class CasualISO8601Parser implements TimestampParser {
         .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
         .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
         .parseDefaulting(ChronoField.NANO_OF_SECOND, 0)
-        .toFormatter()
-        .withZone(ZoneId.systemDefault());
+        .toFormatter();
 
     BASE_COMMA = BASE_DOT.withDecimalStyle(DecimalStyle.of(java.util.Locale.GERMAN));
   }
@@ -58,12 +57,8 @@ public class CasualISO8601Parser implements TimestampParser {
   private final DateTimeFormatter[] parsers;
 
   public CasualISO8601Parser(String timezone) {
-    if (timezone == null) {
-      parsers = new DateTimeFormatter[]{BASE_DOT, BASE_COMMA};
-    } else {
-      ZoneId zone = ZoneId.of(timezone);
-      parsers = new DateTimeFormatter[]{BASE_DOT.withZone(zone), BASE_COMMA.withZone(zone)};
-    }
+    ZoneId zone = timezone == null ? ZoneId.systemDefault() : ZoneId.of(timezone);
+    parsers = new DateTimeFormatter[]{BASE_DOT.withZone(zone), BASE_COMMA.withZone(zone)};
   }
 
   @Override
