@@ -1,5 +1,5 @@
 ## 3.2.0
-  - Add `precision` setting to support nanosecond precision timestamps
+  - Add `precision` setting to support nanosecond precision timestamps [#165](https://github.com/logstash-plugins/logstash-filter-date/pull/165)
     - `ms` (default): timestamps are stored with millisecond precision
       - keeps the same behavior as before for backward compatibility
       - fractional seconds are truncated to 3 digits
